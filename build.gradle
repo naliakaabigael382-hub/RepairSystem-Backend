@@ -1,0 +1,104 @@
+plugins {
+	id 'org.springframework.boot' version '3.4.0'
+	id 'io.spring.dependency-management' version '1.1.0'
+	id 'java'
+	id 'jacoco'
+	id 'maven-publish'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+targetCompatibility = '17'
+
+repositories {
+	mavenCentral()
+	jcenter() // Optionall
+	maven { url 'https://repo.spring.io/milestone' }
+}
+
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	//implementation 'javax.persistence:javax.persistence-api:2.2'
+	//implementation 'javax.validation:validation-api:2.0.1.Final'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'com.itextpdf:itext7-core:7.2.3'
+
+	implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+	implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+	implementation 'org.hibernate:hibernate-core:5.5.6.Final'
+	implementation 'org.springframework.boot:spring-boot-starter-data-rest'
+	runtimeOnly 'org.postgresql:postgresql'
+	testImplementation 'junit:junit:4.12'
+	testImplementation('org.springframework.boot:spring-boot-starter-test') {
+		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+	}
+	testImplementation 'org.mockito:mockito-core:2.+'
+	testImplementation 'org.mockito:mockito-junit-jupiter:2.18.3'
+	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+	testImplementation 'org.junit.platform:junit-platform-launcher:1.4.1'
+}
+
+
+
+
+test {
+	useJUnitPlatform()
+}
+
+jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			limit {
+				minimum = 0.6
+			}
+		}
+	}
+}
+
+apply plugin: 'java'
+apply plugin: 'application'
+
+task compileJavaTask(type: JavaCompile) {
+	classpath = sourceSets.main.compileClasspath
+	classpath += sourceSets.test.runtimeClasspath
+}
+
+sourceSets {
+	main {
+		java {
+			srcDirs = ['src/main/java']
+		}
+	}
+	test {
+		java {
+			srcDirs = ['src/test/java']
+		}
+	}
+}
+
+mainClassName = 'ca.mcgill.ecse321.repairsystem.RepairSystemApplication'
+
+jar {
+	destinationDirectory = file('distributable')
+	manifest {
+		attributes 'Main-Class': mainClassName
+	}
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			from components.java
+		}
+	}
+
+
+	repositories {
+		maven {
+			url = uri("file://${buildDir}/repo")
+		}
+	}
+}

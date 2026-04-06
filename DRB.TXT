@@ -1,0 +1,152 @@
+pg_ctl start -D "C:\Program Files\PostgreSQL\17\data"
+
+psql -U RepairSystemUser -d RepairSystem -h localhost
+
+
+
+
+{
+  "appointmentId": 123,
+  "amount": 200.00,
+  "paymentMethod": "Credit",
+  "email": "customer@example.com",
+  "address": "123 Main Street, City, Country",
+  "debit": "encrypted_debit_info",
+  "status": "PENDING"
+}
+
+
+
+
+
+// Create a new payment
+    @PostMapping
+    public ResponseEntity<?> makePayment(@Valid @RequestBody Payment payment) {
+        // Validate appointment ID
+        if (payment.getAppointmentId() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Appointment ID must not be null.");
+        }
+
+        // Validate email
+        if (payment.getEmail() == null || !EMAIL_PATTERN.matcher(payment.getEmail()).matches()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("A valid email address must be provided.");
+        }
+
+        Optional<Appointment> optionalAppointment = appointmentService.findById(payment.getAppointmentId());
+        if (optionalAppointment.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Invalid appointment ID provided.");
+        }
+
+        // Check if there is already a payment for this appointment ID
+        Optional<Payment> existingPayment = paymentService.findByAppointmentId(payment.getAppointmentId());
+        if (existingPayment.isPresent()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Payment has already been made for this appointment.");
+        }
+
+        Payment newPayment = new Payment();
+        newPayment.setAmount(payment.getAmount());
+        newPayment.setStatus(Payment.PaymentStatus.PENDING);
+        newPayment.setReceipt(generateReceipt(payment));
+        newPayment.setEmail(payment.getEmail());
+        newPayment.setPaymentMethod(payment.getPaymentMethod());
+        newPayment.setAddress(payment.getAddress());
+        newPayment.setAppointmentId(payment.getAppointmentId());
+
+        try {
+            Payment savedPayment = paymentService.save(newPayment);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedPayment);
+        } catch (Exception e) {
+            // Log detailed error information
+            System.err.println("Error while saving payment. Appointment ID: " + payment.getAppointmentId());
+            System.err.println("Exception message: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while processing the payment. Please try again later.");
+        }
+    }
+
+    // Update payment by ID
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updatePayment(@PathVariable int id, @RequestBody Payment updatedPayment) {
+        Optional<Payment> existingPayment = paymentService.findById(id);
+
+        if (existingPayment.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Payment not found with ID: " + id);
+        }
+
+        Payment payment = existingPayment.get();
+
+        if (updatedPayment.getStatus() != null) {
+            payment.setStatus(updatedPayment.getStatus());
+        }
+        if (updatedPayment.getReceipt() != null) {
+            payment.setReceipt(updatedPayment.getReceipt());
+        }
+        if (updatedPayment.getEmail() != null && EMAIL_PATTERN.matcher(updatedPayment.getEmail()).matches()) {
+            payment.setEmail(updatedPayment.getEmail());
+        } else if (updatedPayment.getEmail() != null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Invalid email address provided.");
+        }
+        if (updatedPayment.getAppointmentId() != null) {
+            Optional<Appointment> optionalAppointment = appointmentService.findById(updatedPayment.getAppointmentId());
+            if (optionalAppointment.isPresent()) {
+                payment.setAppointmentId(updatedPayment.getAppointmentId());
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Invalid appointment ID provided.");
+            }
+        }
+
+        Payment savedPayment = paymentService.save(payment);
+        return ResponseEntity.ok(savedPayment);
+    }
+
+    // Delete a payment by ID
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deletePayment(@PathVariable int id) {
+        Optional<Payment> existingPayment = paymentService.findById(id);
+
+        if (existingPayment.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Payment not found with ID: " + id);
+        }
+
+        paymentService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Fetch all payments
+    @GetMapping
+    public ResponseEntity<?> getAllPayments() {
+        List<Payment> payments = paymentService.findAll();
+        return ResponseEntity.ok(payments);
+    }
+
+    // Fetch a payment by ID
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getPaymentById(@PathVariable int id) {
+        Optional<Payment> payment = paymentService.findById(id);
+
+        if (payment.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Payment not found with ID: " + id);
+        }
+
+        return ResponseEntity.ok(payment.get());
+    }
+
+
+
+
+
+
+
+
+
+
+
